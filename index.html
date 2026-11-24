@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sazón</title>
+  <style>
+    :root { --bg: #FAF8F5; --card: #FFF; --txt: #1B3B2B; --mut: #5C7267; --pri: #E05A2B; --acc: #F4EFE6; --brd: #E6DFD3; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body { background: var(--bg); color: var(--txt); }
+    header { background: var(--card); border-bottom: 1px solid var(--brd); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .nav-btn { background: none; border: none; padding: 0.5rem 0.9rem; border-radius: 99px; font-weight: 600; color: var(--mut); cursor: pointer; }
+    .nav-btn.active { background: var(--acc); color: var(--txt); }
+    main { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .hero { text-align: center; padding: 2rem 1rem; background: var(--card); border-radius: 16px; border: 1px solid var(--brd); margin-bottom: 1.5rem; }
+    .row { display: flex; gap: 0.5rem; max-width: 520px; margin: 1rem auto; }
+    input { flex: 1; padding: 0.75rem; border: 1px solid var(--brd); border-radius: 10px; }
+    .btn { background: var(--pri); color: #fff; border: none; padding: 0.75rem 1.2rem; border-radius: 10px; font-weight: 700; cursor: pointer; }
+    .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; }
+    .chip { background: var(--acc); border: 1px solid var(--brd); padding: 0.3rem 0.8rem; border-radius: 99px; font-size: 0.85rem; cursor: pointer; }
+    .chip.on { background: var(--txt); color: #fff; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .card { background: var(--card); border: 1px solid var(--brd); border-radius: 14px; padding: 1.2rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.8rem; }
+    .out { width: 100%; padding: 0.6rem; border: 1px solid var(--brd); background: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+    .bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; padding: 1rem; }
+    .bg.open { display: flex; }
+    .modal { background: var(--card); max-width: 500px; width: 100%; max-height: 85vh; overflow-y: auto; border-radius: 16px; padding: 1.5rem; }
+  </style>
+</head>
+<body>
+<header>
+  <b>🍳 Sazón</b>
+  <nav>
+    <button class="nav-btn active" data-v="home" onclick="go('home')">Explorar</button>
+    <button class="nav-btn" data-v="favs" onclick="go('favs')">Favoritos (<span id="fc">0</span>)</button>
+    <button class="nav-btn" data-v="shop" onclick="go('shop')">Compras (<span id="sc">0</span>)</button>
+  </nav>
+</header>
+<main>
+  <section id="v-home" class="view active">
+    <div class="hero">
+      <h2>¿Qué hay en tu nevera?</h2>
+      <div class="row">
+        <input id="q" placeholder="pollo, arroz, huevo..." oninput="render()" />
+        <button class="btn" onclick="clr()">Limpiar</button>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+  <section id="v-favs" class="view"><div class="grid" id="fgrid"></div></section>
+  <section id="v-shop" class="view">
+    <div class="row"><input id="ni" placeholder="Agregar producto..." /><button class="btn" onclick="addS()">+</button></div>
+    <div id="slist" style="max-width:520px;margin:0 auto"></div>
+  </section>
+</main>
+<div class="bg" id="mbg" onclick="if(event.target===this)this.classList.remove('open')"><div class="modal" id="mbox"></div></div>
+<script>
+const R = [
+  { id:1, t:"Arroz con Pollo", c:"Almuerzo", m:25, i:["pollo","arroz","zanahoria","ajo","huevo","pimentón"], s:["Dora el pollo con ajo y pimentón.","Saltea zanahoria y huevo.","Mezcla el arroz y sirve."] },
+  { id:2, t:"Arepa Reina Pepiada", c:"Cena", m:20, i:["harina de maíz","pollo","aguacate","mayonesa","cilantro"], s:["Asa las arepas.","Tritura aguacate con mayonesa, cilantro y pollo.","Rellena caliente."] },
+  { id:3, t:"Huevos Pericos con Arepa", c:"Desayuno", m:12, i:["huevo","tomate","cebolla","harina de maíz","queso"], s:["Sofríe tomate y cebolla.","Agrega huevos batidos y queso.","Sirve con arepa asada."] },
+  { id:4, t:"Pasta al Ajo y Queso", c:"Almuerzo", m:15, i:["pasta","ajo","crema","queso","mantequilla"], s:["Hierve la pasta.","Dora ajo en mantequilla, suma crema y queso.","Mezcla todo."] },
+  { id:5, t:"Pabellón Rápido en Bowl", c:"Almuerzo", m:30, i:["carne molida","caraotas","arroz","plátano","queso"], s:["Sofríe la carne molida aliñada.","Fríe tajadas de plátano maduro.","Sirve con arroz, caraotas y queso rallado."] },
+  { id:6, t:"Patacones con Queso y Carne", c:"Cena", m:25, i:["plátano verde","carne","queso","tomate","lechuga","ajo"], s:["Fríe trozos de plátano verde, aplástalos y vuelve a freír.","Corona con carne, vegetales y queso rallado."] },
+  { id:7, t:"Cachapas con Queso de Mano", c:"Desayuno", m:20, i:["maíz","leche","huevo","azúcar","queso","mantequilla"], s:["Licúa maíz tierno con leche, huevo y un toque de azúcar.","Cocina en budare con mantequilla y dobla con queso."] },
+  { id:8, t:"Tortilla de Papa y Cebolla", c:"Cena", m:25, i:["papa","huevo","cebolla","aceite","sal"], s:["Fríe láminas finas de papa y cebolla a fuego bajo.","Mezcla con huevo batido y cuaja por ambos lados."] },
+  { id:9, t:"Pollo Guisado con Papas", c:"Almuerzo", m:35, i:["pollo","papa","zanahoria","tomate","cebolla","ajo","pimentón"], s:["Dora el pollo con ajo, cebolla, tomate y pimentón.","Agrega papas en cubos, zanahoria y agua. Cocina hasta espesar."] },
+  { id:10, t:"Ensalada César con Pollo", c:"Cena", m:15, i:["pollo","lechuga","pan","queso","ajo","mayonesa","limón"], s:["Asa pechuga de pollo en tiras y tuesta cubos de pan.","Mezcla con lechuga, queso y aderezo de ajo, limón y mayonesa."] },
+  { id:11, t:"Tostadas Francesas con Cambur", c:"Desayuno", m:10, i:["pan","huevo","leche","canela","cambur","mantequilla"], s:["Bate huevo con leche y canela.","Remoja el pan, dora en mantequilla y sirve con cambur."] },
+  { id:12, t:"Atún Salteado con Vegetales", c:"Almuerzo", m:12, i:["atún","tomate","cebolla","pimentón","ajo","arroz"], s:["Sofríe cebolla, tomate, ajo y pimentón.","Incorpora el atún escurrido, saltea 3 minutos y acompaña con arroz."] }
+];
+const C = ["pollo","carne","atún","huevo","queso","arroz","pasta","harina de maíz","papa","plátano","tomate","cebolla","ajo","pimentón","zanahoria","aguacate","caraotas","pan","leche","cambur"];
+let sel = new Set(), fav = JSON.parse(localStorage.sz_f||"[]"), shp = JSON.parse(localStorage.sz_s||"[]");
+const $ = id => document.getElementById(id);
+
+function go(v) {
+  document.querySelectorAll(".view,.nav-btn").forEach(e=>e.classList.remove("active"));
+  $("v-"+v).classList.add("active"); document.querySelector(`[data-v="${v}"]`).classList.add("active");
+  if(v==="favs") rFav(); if(v==="shop") rShp();
+}
+function dChips() { $("chips").innerHTML = C.map(c=>`<span class="chip ${sel.has(c)?'on':''}" onclick="tChip('${c}')">+ ${c}</span>`).join(""); }
+function tChip(c) { sel.has(c)?sel.delete(c):sel.add(c); dChips(); render(); }
+function clr() { $("q").value=""; sel.clear(); dChips(); render(); }
+function ings() { return [...new Set([...$("q").value.toLowerCase().split(",").map(s=>s.trim()).filter(Boolean), ...sel])]; }
+
+function card(r) {
+  return `<div class="card"><div><b>${r.c} • ${r.m}m</b> <span style="float:right;cursor:pointer" onclick="tFav(${r.id})">${fav.includes(r.id)?"❤️":"🤍"}</span><h3>${r.t}</h3></div><button class="out" onclick="openM(${r.id})">Ver receta</button></div>`;
+}
+function render() {
+  const u = ings();
+  const list = u.length ? R.filter(r=>u.some(x=>r.i.some(i=>i.includes(x)))) : R;
+  $("grid").innerHTML = list.map(card).join("") || "<p>Sin resultados.</p>";
+}
+function tFav(id) { fav = fav.includes(id)?fav.filter(x=>x!==id):[...fav,id]; localStorage.sz_f=JSON.stringify(fav); cnt(); render(); rFav(); }
+function rFav() { $("fgrid").innerHTML = R.filter(r=>fav.includes(r.id)).map(card).join("") || "<p>Sin favoritos.</p>"; }
+function openM(id) {
+  const r = R.find(x=>x.id===id), u = ings();
+  $("mbox").innerHTML = `<h3>${r.t}</h3><div id="mi" style="margin:1rem 0">${r.i.map(i=>`<label style="display:block;padding:4px 0"><input type="checkbox" value="${i}" ${u.some(x=>i.includes(x))?"checked":""}> ${i}</label>`).join("")}</div><button class="btn" style="width:100%" onclick="toS()">Enviar faltantes a compras</button><ol style="margin:1rem 0 0 1.2rem">${r.s.map(s=>`<li>${s}</li>`).join("")}</ol>`;
+  $("mbg").classList.add("open");
+}
+function toS() {
+  document.querySelectorAll("#mi input").forEach(c=>{ if(!c.checked && !shp.includes(c.value)) shp.push(c.value); });
+  localStorage.sz_s=JSON.stringify(shp); cnt(); $("mbg").classList.remove("open");
+}
+function addS() { if($("ni").value.trim()){ shp.push($("ni").value.trim()); $("ni").value=""; localStorage.sz_s=JSON.stringify(shp); cnt(); rShp(); } }
+function delS(i) { shp.splice(i,1); localStorage.sz_s=JSON.stringify(shp); cnt(); rShp(); }
+function rShp() { $("slist").innerHTML = shp.map((x,i)=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ddd"><span>${x}</span><b style="cursor:pointer;color:red" onclick="delS(${i})">✕</b></div>`).join("") || "<p>Lista vacía.</p>"; }
+function cnt() { $("fc").textContent=fav.length; $("sc").textContent=shp.length; }
+dChips(); render(); cnt();
+</script>
+</body>
+</html>
